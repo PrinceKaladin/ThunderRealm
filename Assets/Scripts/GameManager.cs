@@ -5,7 +5,14 @@ public class GameManager : MonoBehaviour
 {
     [Header("Slider")]
     [SerializeField] private SliderMovemant slider;
-    [SerializeField] private float successZone = 0.1f;
+    [SerializeField] private Transform sliderHandle;
+
+    [Header("Hit Detection")]
+    [SerializeField] private float hitRadius = 0.5f; // Радиус успеха
+
+    [Header("Success Zones")]
+    [SerializeField] private Transform[] successZones; // 3 Transform
+    private Transform activeZone; // текущая активная зона
 
     [Header("UI")]
     [SerializeField] private GameObject startButton;
@@ -22,9 +29,9 @@ public class GameManager : MonoBehaviour
     private int successCount;
     private float currentTime;
     private bool gameActive;
+    private bool timerPaused;
 
-    private bool timerPaused; // 👈 НОВОЕ
-
+    [Header("Feedback")]
     public Animator right;
     public Animator wrong;
 
@@ -55,7 +62,6 @@ public class GameManager : MonoBehaviour
         }
     }
 
-    // 🔁 ПОЛНЫЙ РЕСТАРТ
     public void RestartGame()
     {
         gameActive = false;
@@ -72,6 +78,8 @@ public class GameManager : MonoBehaviour
         tapButton.SetActive(false);
 
         slider.ResetSlider();
+
+        ActivateRandomZone();
     }
 
     public void StartGame()
@@ -87,15 +95,15 @@ public class GameManager : MonoBehaviour
         timerPaused = false;
 
         slider.StartMove();
+
+        ActivateRandomZone();
     }
 
     public void Tap()
     {
         if (!gameActive) return;
 
-        float pos = slider.GetNormalizedPosition();
-
-        if (Mathf.Abs(pos - 0.5f) <= successZone)
+        if (IsNearActiveZone())
         {
             CorrectTap();
             clickSound.Play();
@@ -104,18 +112,32 @@ public class GameManager : MonoBehaviour
         {
             WrongTap();
         }
+
+        // после каждого клика активируем новую случайную зону
+        ActivateRandomZone();
     }
 
-    // ⏸️ ПАУЗА ТАЙМЕРА
-    public void PauseTimer()
+    // 🔹 Проверка по дистанции до активной зоны
+    private bool IsNearActiveZone()
     {
-        timerPaused = true;
+        if (activeZone == null) return false;
+
+        float distance = Vector3.Distance(sliderHandle.position, activeZone.position);
+        return distance <= hitRadius;
     }
 
-    // ▶️ ПРОДОЛЖЕНИЕ ТАЙМЕРА
-    public void ResumeTimer()
+    // 🔹 Активируем случайную зону из массива и деактивируем остальные
+    private void ActivateRandomZone()
     {
-        timerPaused = false;
+        if (successZones == null || successZones.Length == 0) return;
+
+        int randomIndex = Random.Range(0, successZones.Length);
+        for (int i = 0; i < successZones.Length; i++)
+        {
+            bool isActive = i == randomIndex;
+            successZones[i].gameObject.SetActive(isActive);
+            if (isActive) activeZone = successZones[i];
+        }
     }
 
     private void CorrectTap()
@@ -167,5 +189,13 @@ public class GameManager : MonoBehaviour
         int seconds = Mathf.FloorToInt(time % 60f);
 
         timerText.text = $"{minutes:00}:{seconds:00}";
+    }
+
+    private void OnDrawGizmos()
+    {
+        if (sliderHandle == null) return;
+
+        Gizmos.color = Color.red;
+        Gizmos.DrawWireSphere(sliderHandle.position, hitRadius);
     }
 }
