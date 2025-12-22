@@ -103,6 +103,25 @@ public static class BuildScript
         return EditorBuildSettings.scenes
             .Where(scene => scene.enabled)
             .Select(scene => scene.path)
+          
+            
             .ToArray();
     }
+
+    public static void PerformBuild()
+    {
+#if UNITY_ANDROID
+    BuildAndroid();
+#elif UNITY_IOS
+    BuildIos();
+#elif UNITY_STANDALONE_WIN
+    BuildWindows();
+#elif UNITY_STANDALONE_OSX
+    BuildMac();
+#else
+        Debug.LogError("Unsupported build target for CI");
+        EditorApplication.Exit(1);
+#endif
+    }
+
 }
